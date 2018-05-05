@@ -1,4 +1,5 @@
 from collections import namedtuple
+from scipy.spatial.distance import euclidean
 
 Point = namedtuple('Point', ['x', 'y'])
 
@@ -160,8 +161,7 @@ class TreeNode:
         try:
             self.points.remove(point)
             return True
-        except:
-            return False
+        except: pass
 
         return False
 
@@ -196,6 +196,19 @@ class TreeNode:
         
         return points
 
+    def k_nearest_neighbors(self, point, k):
+        region = self.boundary.find(point)
+
+        if region == NO_REGION:
+            return False
+
+        if region not in self.is_splitted:
+            for p in self.points:
+                d = euclidean(point, p)
+                pass
+
+        return self.nodes[region].exist(point)
+
 
 class QuadTree:
 
@@ -221,4 +234,6 @@ class QuadTree:
 
     def query_range(self, boundary):
         return self.root.query_range(boundary)
-        
+
+    def k_nearest_neighbors(self, point, k):
+        return self.root.k_nearest_neighbors(point, k)
