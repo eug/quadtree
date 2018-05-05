@@ -9,7 +9,7 @@ SOUTH_EAST = 3
 SOUTH_WEST = 4
 
 class Boundary:
-    def __init__(self, center, dimension, depth):
+    def __init__(self, center, dimension):
         self.center = center
         self.dimension = dimension
 
@@ -55,10 +55,27 @@ class Boundary:
 
         return NO_REGION
 
+    def intersects(self, boundary):
+        ad = self.dimension
+        aleft = self.center.x - ad
+        aright = self.center.x + ad
+        atop = self.center.y + ad
+        abottom = self.center.y - ad
+
+        bd = boundary.dimension
+        bleft = boundary.center.x - ad
+        bright = boundary.center.x + ad
+        btop = boundary.center.y + ad
+        bbottom = boundary.center.y - ad
+
+        return (bleft < aright) and (bbottom < atop or btop > abottom) or \
+               (bright > aleft) and (bbottom < atop or btop > abottom)
+
+
 class TreeNode:
     def __init__(self, center, dimension, max_points, max_depth, depth):
         self.is_splitted = []
-        self.boundary = Boundary(center, dimension, depth)
+        self.boundary = Boundary(center, dimension)
         self.depth = depth
         self.max_depth = max_depth
         self.max_points = max_points
@@ -163,6 +180,23 @@ class TreeNode:
     def find(self, point):
         return self.boundary.find(point)
 
+    def query_range(self, boundary):
+        points = set([])
+        
+        if not self.boundary.intersects(boundary):
+            return points
+        
+        for region in self.is_splitted:
+            for p in self.nodes[region].query_range(boundary):
+                if boundary.contains(p):
+                    points.add(p)
+        
+        if not self.is_splitted:
+            for p in self.points:
+                points.add(p)
+        
+        return points
+
 
 class QuadTree:
 
@@ -186,39 +220,6 @@ class QuadTree:
     def find(self, point):
         return self.root.find(point)
 
-
-import random as rnd
-from time import time
-rnd.seed(42)
-
-l = []
-for i in range(0, 1000000):
-    x, y = rnd.random(), rnd.random()
-    p = Point(x, y)
-    l.append(p)
-
-
-qt = QuadTree(max_depth=8)
-s = time()
-for p in l:
-    qt.insert(p)
-print("Insertion: " + str(time() - s))
-
-
-s = time()
-for p in l[:]:
-    qt.remove(p)
-    # l.remove(p)
-print("Removal: " + str(time() - s))
-
-
-s = time()
-qt.find(l[0])
-print("Find: " + str(time() - s))
-
-s = time()
-qt.exist(l[0])
-print("Exist: " + str(time() - s))
-
-
-print(len(qt))
+    def query_range(self, boundary):
+        return self.root.query_range(boundary)
+        
