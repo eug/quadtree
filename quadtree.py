@@ -62,7 +62,7 @@ class TreeNode:
         self.depth = depth
         self.max_depth = max_depth
         self.max_points = max_points
-        self.points = []
+        self.points = set([])
         self.nodes = {
             NORTH_WEST: None,
             NORTH_EAST: None,
@@ -108,9 +108,7 @@ class TreeNode:
            self.depth == self.max_depth:
 
             if region not in self.is_splitted:
-                # if point not in self.points:
-                self.points.append(point)
-                #else: DUPLICATED POINT
+                self.points.add(point)
             else:
                 self.nodes[region].insert(point)
 
@@ -123,7 +121,7 @@ class TreeNode:
             self.subdivide(region)
 
         # Move all points to the child nodes (leaf)
-        for p in self.points[:]:
+        for p in self.points.copy():
             if self.boundary.find(p) == region:
                 self.points.remove(p)
                 self.nodes[region].insert(p)
@@ -194,20 +192,33 @@ from time import time
 rnd.seed(42)
 
 l = []
-qt = QuadTree(max_depth=2)
-s = time()
 for i in range(0, 1000000):
     x, y = rnd.random(), rnd.random()
     p = Point(x, y)
-    # qt.insert(p)
     l.append(p)
+
+
+qt = QuadTree(max_depth=8)
+s = time()
+for p in l:
+    qt.insert(p)
 print("Insertion: " + str(time() - s))
 
-rnd.seed(42)
+
 s = time()
 for p in l[:]:
-    # qt.remove(p)
-    l.remove(p)
+    qt.remove(p)
+    # l.remove(p)
 print("Removal: " + str(time() - s))
+
+
+s = time()
+qt.find(l[0])
+print("Find: " + str(time() - s))
+
+s = time()
+qt.exist(l[0])
+print("Exist: " + str(time() - s))
+
 
 print(len(qt))
