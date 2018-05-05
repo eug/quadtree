@@ -63,10 +63,10 @@ class Boundary:
         abottom = self.center.y - ad
 
         bd = boundary.dimension
-        bleft = boundary.center.x - ad
-        bright = boundary.center.x + ad
-        btop = boundary.center.y + ad
-        bbottom = boundary.center.y - ad
+        bleft = boundary.center.x - bd
+        bright = boundary.center.x + bd
+        btop = boundary.center.y + bd
+        bbottom = boundary.center.y - bd
 
         return (bleft < aright) and (bbottom < atop or btop > abottom) or \
                (bright > aleft) and (bbottom < atop or btop > abottom)
@@ -94,7 +94,6 @@ class TreeNode:
 
     def __str__(self):
         return 'Depth=%d\t#Items=%d\t%s\t%s' % (self.depth, len(self.points), self.boundary, self.is_splitted)
-
 
     def subdivide(self, region):
         dm = self.boundary.dimension / 2
