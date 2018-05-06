@@ -17,7 +17,9 @@ class Boundary:
         self.dimension = dimension
 
     def __str__(self):
-        return 'Center=(%.4f, %.4f)\tDimension=%.4f' % (self.center.x, self.center.y, self.dimension)
+        s  = 'Center=({}, {})\t'
+        s += 'Dimension={}'
+        return s.format(self.center.x, self.center.y, self.dimension)
 
     def belongs(self, point):
         """ Check if the point belongs to this boundary """
@@ -87,36 +89,44 @@ class Boundary:
 
 class TreeNode:
     def __init__(self, center, dimension, max_points, max_depth, depth):
-        self.is_splitted = []
         self.boundary = Boundary(center, dimension)
         self.max_depth = max_depth
         self.max_points = max_points
         self._depth = depth
-        self.points = set([])
-        self.nodes = {
-            NORTH_WEST: None,
-            NORTH_EAST: None,
-            SOUTH_EAST: None,
-            SOUTH_WEST: None
-        }
+        self._points = set([])
+        self._nodes = {}
+
+    @property
+    def _splitted(self):
+        return len(self._nodes) > 0
 
     def __len__(self):
-        if not self.is_splitted:
-            return len(self.points)
-        return sum(len(v) for v in self.nodes.values() if v)
+        if not self._splitted:
+            return len(self._points)
+        return sum(len(v) for v in self._nodes.values() if v)
 
     def __str__(self):
-        return 'Depth=%d\t#Items=%d\t%s\t%s' % (self._depth, len(self.points), self.boundary, self.is_splitted)
+        s  = 'Depth={}\t'
+        s += 'Length={}\t'
+        s += 'Partitions={}'
+        return s.format(self._depth, len(self._points, len(self._splitted)))
 
-    def __next__(self):
-        raise StopIteration
+    def __iter__(self):
+        points = []
+        stack = [self]
+        while stack:
+            node = stack.pop()
+            for n in node._nodes.values():
+                stack.append(n)
+            points += node._points
+        return iter(points)
 
     def subdivide(self, region):
+        x, y = self.boundary.center
         dm = self.boundary.dimension / 2
         mp = self.max_points
         md = self.max_depth
         dp = self._depth + 1
-        x, y = self.boundary.center
 
         if region == NORTH_WEST:
             center = Point(x - dm, y + dm)
@@ -127,7 +137,7 @@ class TreeNode:
         elif region == SOUTH_WEST:
             center = Point(x - dm, y - dm)
 
-        self.nodes[region] = TreeNode(center, dm, mp, md, dp)
+        self._nodes[region] = TreeNode(center, dm, mp, md, dp)
 
     def insert(self, point):
         region = self.boundary.find(point)
@@ -136,29 +146,28 @@ class TreeNode:
         if region == NO_REGION:
             return False
 
-        if len(self.points) < self.max_points or \
+        if len(self._points) < self.max_points or \
            self._depth == self.max_depth:
 
-            if region not in self.is_splitted:
-                self.points.add(point)
+            if region not in self._nodes:
+                self._points.add(point)
             else:
-                self.nodes[region].insert(point)
+                self._nodes[region].insert(point)
 
             return True
 
         # otherwise, subdivide and then add the point
         # into its respective region
-        if region not in self.is_splitted:
-            self.is_splitted.append(region)
+        if region not in self._nodes:
             self.subdivide(region)
 
         # Move all points to the child nodes (leaf)
-        for p in self.points.copy():
+        for p in self._points.copy():
             if self.boundary.find(p) == region:
-                self.points.remove(p)
-                self.nodes[region].insert(p)
+                self._points.remove(p)
+                self._nodes[region].insert(p)
 
-        if self.nodes[region].insert(point):
+        if self._nodes[region].insert(point):
             return True
 
         # This should never happen!
@@ -170,11 +179,11 @@ class TreeNode:
         if region == NO_REGION:
             return False
 
-        if region in self.is_splitted:
-            return self.nodes[region].remove(point)
+        if region in self._nodes:
+            return self._nodes[region].remove(point)
 
         try:
-            self.points.remove(point)
+            self._points.remove(point)
             return True
         except: pass
 
@@ -186,10 +195,10 @@ class TreeNode:
         if region == NO_REGION:
             return False
 
-        if region not in self.is_splitted:
-            return point in self.points
+        if region not in self._nodes:
+            return point in self._points
 
-        return self.nodes[region].exist(point)
+        return self._nodes[region].exist(point)
 
     def find(self, point):
         return self.boundary.find(point)
@@ -200,23 +209,23 @@ class TreeNode:
         if region == NO_REGION:
             return False
 
-        if region not in self.is_splitted:
-            return self._depth if point in self.points else -1
+        if region not in self._nodes:
+            return self._depth if point in self._points else -1
 
-        return self.nodes[region].depth(point)
+        return self._nodes[region].depth(point)
 
     def query_range(self, boundary):
         points = set([])
-        
+
         if not self.boundary.intersects(boundary):
             return points
 
-        for region in self.is_splitted:
-            for p in self.nodes[region].query_range(boundary):
+        for region in self._nodes:
+            for p in self._nodes[region].query_range(boundary):
                 if boundary.belongs(p):
                     points.add(p)
 
-        for p in self.points:
+        for p in self._points:
             if boundary.belongs(p):
                 points.add(p)
 
@@ -227,10 +236,10 @@ class TreeNode:
             return 0
 
         count = 0
-        for region in self.is_splitted:
-            count += self.nodes[region]._count_points(boundary)
-        
-        return sum(1 for p in self.points if boundary.belongs(p)) + count
+        for region in self._nodes:
+            count += self._nodes[region]._count_points(boundary)
+
+        return sum(1 for p in self._points if boundary.belongs(p)) + count
 
     def _compute_knn(self, points, point, k):
         neighbors = []
@@ -243,8 +252,9 @@ class TreeNode:
             neighbor = (dist, p)
 
             if len(neighbors) < k:
-                if not distant_neighbor or\
-                   neighbor[0] > distant_neighbor[0]:
+                if not distant_neighbor:
+                    distant_neighbor = neighbor
+                if neighbor[0] > distant_neighbor[0]:
                     distant_neighbor = neighbor
                 bisect.insort(neighbors, neighbor)
                 continue
@@ -275,19 +285,16 @@ class TreeNode:
 
 class QuadTree:
 
-    def __init__(self, scale=1, max_points=1, max_depth=4):
+    def __init__(self, dimension=1, max_points=1, max_depth=4):
         self.max_points = max_points
         self.max_depth = max_depth
-        self.root = TreeNode(Point(0, 0), scale, max_points, max_depth, 0)
+        self.root = TreeNode(Point(0, 0), dimension, max_points, max_depth, 0)
 
     def __len__(self):
         return len(self.root)
 
     def __iter__(self):
-        return self
-    
-    def __next__(self):
-        return self.root.__next__()
+        return iter(self.root)
 
     def __contains__(self, point):
         return self.root.exist(point)
@@ -297,9 +304,6 @@ class QuadTree:
 
     def remove(self, point):
         return self.root.remove(point)
-
-    def exist(self, point):
-        return self.root.exist(point)
 
     def find(self, point):
         return self.root.find(point)
