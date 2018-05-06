@@ -29,7 +29,7 @@ class TreeNode:
         s  = 'Depth={}\t'
         s += 'Length={}\t'
         s += 'Partitions={}'
-        return s.format(self._depth, len(self._points, len(self.splitted)))
+        return s.format(self._depth, len(self._points), len(self._nodes))
 
     def __iter__(self):
         points = []
