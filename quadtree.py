@@ -1,14 +1,15 @@
+import bisect
 from collections import namedtuple
-from sortedcontainers import SortedList
+
 from scipy.spatial.distance import euclidean
 
 Point = namedtuple('Point', ['x', 'y'])
 
 NO_REGION = -1
-NORTH_WEST = 1
-NORTH_EAST = 2
-SOUTH_EAST = 3
-SOUTH_WEST = 4
+NORTH_WEST = 0
+NORTH_EAST = 1
+SOUTH_EAST = 2
+SOUTH_WEST = 3
 
 class Boundary:
     def __init__(self, center, dimension):
@@ -18,8 +19,8 @@ class Boundary:
     def __str__(self):
         return 'Center=(%.4f, %.4f)\tDimension=%.4f' % (self.center.x, self.center.y, self.dimension)
 
-    def contains(self, point):
-        """ Check if the point contains in this boundary """
+    def belongs(self, point):
+        """ Check if the point belongs to this boundary """
         if not point:
             return False
 
@@ -212,11 +213,11 @@ class TreeNode:
 
         for region in self.is_splitted:
             for p in self.nodes[region].query_range(boundary):
-                if boundary.contains(p):
+                if boundary.belongs(p):
                     points.add(p)
 
         for p in self.points:
-            if boundary.contains(p):
+            if boundary.belongs(p):
                 points.add(p)
 
         return points
@@ -224,20 +225,36 @@ class TreeNode:
     def _count_points(self, boundary):
         if not self.boundary.intersects(boundary):
             return 0
-        
+
         count = 0
         for region in self.is_splitted:
             count += self.nodes[region]._count_points(boundary)
-
-        return len(self.points) + count
+        
+        return sum(1 for p in self.points if boundary.belongs(p)) + count
 
     def _compute_knn(self, points, point, k):
         neighbors = []
+        distant_neighbor = None
+
         for p in points:
             if p == point: continue
+
             dist = euclidean(point, p)
-            neighbors.append((dist, p))
-        return sorted(neighbors, key=lambda x: x[0])[:k]
+            neighbor = (dist, p)
+
+            if len(neighbors) < k:
+                if not distant_neighbor or\
+                   neighbor[0] > distant_neighbor[0]:
+                    distant_neighbor = neighbor
+                bisect.insort(neighbors, neighbor)
+                continue
+
+            if neighbor[0] < distant_neighbor[0]:
+                del neighbors[-1]
+                bisect.insort(neighbors, neighbor)
+                distant_neighbor = neighbors[-1]
+
+        return neighbors
 
     def knn(self, point, k, factor=.1):
         if len(self) < k:
@@ -258,10 +275,10 @@ class TreeNode:
 
 class QuadTree:
 
-    def __init__(self, dimension=1, max_points=1, max_depth=4):
+    def __init__(self, scale=1, max_points=1, max_depth=4):
         self.max_points = max_points
         self.max_depth = max_depth
-        self.root = TreeNode(Point(0, 0), dimension, max_points, max_depth, 0)
+        self.root = TreeNode(Point(0, 0), scale, max_points, max_depth, 0)
 
     def __len__(self):
         return len(self.root)
@@ -271,6 +288,9 @@ class QuadTree:
     
     def __next__(self):
         return self.root.__next__()
+
+    def __contains__(self, point):
+        return self.root.exist(point)
 
     def insert(self, point):
         return self.root.insert(point)
