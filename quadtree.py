@@ -77,9 +77,9 @@ class TreeNode:
     def __init__(self, center, dimension, max_points, max_depth, depth):
         self.is_splitted = []
         self.boundary = Boundary(center, dimension)
-        self.depth = depth
         self.max_depth = max_depth
         self.max_points = max_points
+        self._depth = depth
         self.points = set([])
         self.nodes = {
             NORTH_WEST: None,
@@ -94,13 +94,13 @@ class TreeNode:
         return sum(len(v) for v in self.nodes.values() if v)
 
     def __str__(self):
-        return 'Depth=%d\t#Items=%d\t%s\t%s' % (self.depth, len(self.points), self.boundary, self.is_splitted)
+        return 'Depth=%d\t#Items=%d\t%s\t%s' % (self._depth, len(self.points), self.boundary, self.is_splitted)
 
     def subdivide(self, region):
         dm = self.boundary.dimension / 2
         mp = self.max_points
         md = self.max_depth
-        dp = self.depth + 1
+        dp = self._depth + 1
         x, y = self.boundary.center
 
         if region == NORTH_WEST:
@@ -122,7 +122,7 @@ class TreeNode:
             return False
 
         if len(self.points) < self.max_points or \
-           self.depth == self.max_depth:
+           self._depth == self.max_depth:
 
             if region not in self.is_splitted:
                 self.points.add(point)
@@ -179,6 +179,17 @@ class TreeNode:
     def find(self, point):
         return self.boundary.find(point)
 
+    def depth(self, point):
+        region = self.boundary.find(point)
+
+        if region == NO_REGION:
+            return False
+
+        if region not in self.is_splitted:
+            return self._depth if point in self.points else -1
+
+        return self.nodes[region].depth(point)
+
     def query_range(self, boundary):
         points = set([])
         
@@ -231,6 +242,9 @@ class QuadTree:
 
     def find(self, point):
         return self.root.find(point)
+
+    def depth(self, point):
+        return self.root.depth(point)
 
     def query_range(self, boundary):
         return self.root.query_range(boundary)
