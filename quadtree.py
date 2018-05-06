@@ -139,39 +139,39 @@ class TreeNode:
 
         self._nodes[region] = TreeNode(center, dm, mp, md, dp)
 
+    @property
+    def _has_max_points(self):
+        return len(self._points) >= self.max_points
+
+    @property
+    def _is_max_depth(self):
+        return self._depth == self.max_depth
+
+    def _insert_at(self, point, region):
+        if region not in self._nodes:
+            self._points.add(point)
+        else:
+            self._nodes[region].insert(point)
+
     def insert(self, point):
         region = self.boundary.find(point)
 
-        # Ignore objects that do not belong in this quad tree
         if region == NO_REGION:
             return False
 
-        if len(self._points) < self.max_points or \
-           self._depth == self.max_depth:
-
-            if region not in self._nodes:
-                self._points.add(point)
-            else:
-                self._nodes[region].insert(point)
-
+        if not self._has_max_points or self._is_max_depth:
+            self._insert_at(point, region)
             return True
-
-        # otherwise, subdivide and then add the point
-        # into its respective region
+        
         if region not in self._nodes:
             self.subdivide(region)
 
-        # Move all points to the child nodes (leaf)
         for p in self._points.copy():
             if self.boundary.find(p) == region:
                 self._points.remove(p)
                 self._nodes[region].insert(p)
 
-        if self._nodes[region].insert(point):
-            return True
-
-        # This should never happen!
-        return False
+        return self._nodes[region].insert(point)
 
     def remove(self, point):
         region = self.boundary.find(point)
@@ -188,6 +188,22 @@ class TreeNode:
         except: pass
 
         return False
+
+    def update(self, new_point, old_point):
+        region = self.boundary.find(old_point)
+
+        if region == NO_REGION:
+            return False
+
+        if region not in self._nodes:
+            try:
+                self._points.remove(old_point)
+                self._points.add(new_point)
+                return True
+            except:
+                return False
+
+        return self._nodes[region].update(new_point, old_point)
 
     def exist(self, point):
         region = self.boundary.find(point)
@@ -305,8 +321,8 @@ class QuadTree:
     def remove(self, point):
         return self.root.remove(point)
 
-    def find(self, point):
-        return self.root.find(point)
+    def update(self, new_point, old_point):
+        return self.root.update(new_point, old_point)
 
     def depth(self, point):
         return self.root.depth(point)
