@@ -107,6 +107,9 @@ class TreeNode:
     def __str__(self):
         return 'Depth=%d\t#Items=%d\t%s\t%s' % (self._depth, len(self.points), self.boundary, self.is_splitted)
 
+    def __next__(self):
+        raise StopIteration
+
     def subdivide(self, region):
         dm = self.boundary.dimension / 2
         mp = self.max_points
@@ -218,6 +221,16 @@ class TreeNode:
 
         return points
 
+    def _count_points(self, boundary):
+        if not self.boundary.intersects(boundary):
+            return 0
+        
+        count = 0
+        for region in self.is_splitted:
+            count += self.nodes[region]._count_points(boundary)
+
+        return len(self.points) + count
+
     def _compute_knn(self, points, point, k):
         neighbors = []
         for p in points:
@@ -231,13 +244,15 @@ class TreeNode:
             points = self.query_range(self.boundary)
             return self._compute_knn(points, point, k)
 
-        points = []
+        points_count = 0
         dimension = factor
 
-        while len(points) <= k:
+        while points_count <= k:
             dimension += factor
-            points = self.query_range(Boundary(point, dimension))
+            points_count = self._count_points(Boundary(point, dimension)) - 1
+            # Note: subtracts 1 to ignore the point itself
 
+        points = self.query_range(Boundary(point, dimension))
         return self._compute_knn(points, point, k)
 
 
@@ -250,7 +265,13 @@ class QuadTree:
 
     def __len__(self):
         return len(self.root)
+
+    def __iter__(self):
+        return self
     
+    def __next__(self):
+        return self.root.__next__()
+
     def insert(self, point):
         return self.root.insert(point)
 
