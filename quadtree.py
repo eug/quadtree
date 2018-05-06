@@ -1,4 +1,5 @@
 from collections import namedtuple
+from sortedcontainers import SortedList
 from scipy.spatial.distance import euclidean
 
 Point = namedtuple('Point', ['x', 'y'])
@@ -69,9 +70,19 @@ class Boundary:
         btop = boundary.center.y + bd
         bbottom = boundary.center.y - bd
 
-        return (bleft < aright) and (bbottom < atop or btop > abottom) or \
-               (bright > aleft) and (bbottom < atop or btop > abottom)
+        intersect_left  = bright > aleft and bleft < aleft
+        intersect_right = bleft < aright and bright > aright
+        intersect_top   = bbottom < atop and btop > atop
+        intersect_bottom= btop > abottom and bbottom < abottom
 
+        intersect_inside = (atop > btop and abottom < bbottom) or\
+                           (aleft < bleft and aright > bright)
+
+        return intersect_top and intersect_left  or\
+               intersect_top and intersect_right or\
+               intersect_bottom and intersect_left  or\
+               intersect_bottom and intersect_right or\
+               intersect_inside
 
 class TreeNode:
     def __init__(self, center, dimension, max_points, max_depth, depth):
@@ -195,30 +206,39 @@ class TreeNode:
         
         if not self.boundary.intersects(boundary):
             return points
-        
+
         for region in self.is_splitted:
             for p in self.nodes[region].query_range(boundary):
                 if boundary.contains(p):
                     points.add(p)
-        
-        if not self.is_splitted:
-            for p in self.points:
+
+        for p in self.points:
+            if boundary.contains(p):
                 points.add(p)
-        
+
         return points
 
-    def k_nearest_neighbors(self, point, k):
-        region = self.boundary.find(point)
+    def _compute_knn(self, points, point, k):
+        neighbors = []
+        for p in points:
+            if p == point: continue
+            dist = euclidean(point, p)
+            neighbors.append((dist, p))
+        return sorted(neighbors, key=lambda x: x[0])[:k]
 
-        if region == NO_REGION:
-            return False
+    def knn(self, point, k, factor=.1):
+        if len(self) < k:
+            points = self.query_range(self.boundary)
+            return self._compute_knn(points, point, k)
 
-        if region not in self.is_splitted:
-            for p in self.points:
-                d = euclidean(point, p)
-                pass
+        points = []
+        dimension = factor
 
-        return self.nodes[region].exist(point)
+        while len(points) <= k:
+            dimension += factor
+            points = self.query_range(Boundary(point, dimension))
+
+        return self._compute_knn(points, point, k)
 
 
 class QuadTree:
@@ -249,5 +269,5 @@ class QuadTree:
     def query_range(self, boundary):
         return self.root.query_range(boundary)
 
-    def k_nearest_neighbors(self, point, k):
-        return self.root.k_nearest_neighbors(point, k)
+    def knn(self, point, k):
+        return self.root.knn(point, k)
