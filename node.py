@@ -3,7 +3,6 @@ import bisect
 
 from scipy.spatial.distance import euclidean
 
-from boundary import Boundary
 from common import *
 
 
@@ -74,7 +73,7 @@ class TreeNode:
             self._nodes[quadrant].insert(point)
 
     def insert(self, point):
-        quadrant = self.boundary.quadrants(point)
+        quadrant = quadrants(self.boundary, point)
 
         if quadrant == NO_QUADRANT:
             return False
@@ -87,14 +86,14 @@ class TreeNode:
             self.split(quadrant)
 
         for p in self._points.copy():
-            if self.boundary.quadrants(p) == quadrant:
+            if quadrants(self.boundary, p) == quadrant:
                 self._points.remove(p)
                 self._nodes[quadrant].insert(p)
 
         return self._nodes[quadrant].insert(point)
 
     def remove(self, point):
-        quadrant = self.boundary.quadrants(point)
+        quadrant = quadrants(self.boundary, point)
 
         if quadrant == NO_QUADRANT:
             return False
@@ -110,7 +109,7 @@ class TreeNode:
         return False
 
     def update(self, new_point, old_point):
-        quadrant = self.boundary.quadrants(old_point)
+        quadrant = quadrants(self.boundary, old_point)
 
         if quadrant == NO_QUADRANT:
             return False
@@ -126,7 +125,7 @@ class TreeNode:
         return self._nodes[quadrant].update(new_point, old_point)
 
     def exist(self, point):
-        quadrant = self.boundary.quadrants(point)
+        quadrant = quadrants(self.boundary, point)
 
         if quadrant == NO_QUADRANT:
             return False
@@ -137,10 +136,10 @@ class TreeNode:
         return self._nodes[quadrant].exist(point)
 
     def quadrants(self, point):
-        return self.boundary.quadrants(point)
+        return quadrants(self.boundary, point)
 
     def depth(self, point):
-        quadrant = self.boundary.quadrants(point)
+        quadrant = quadrants(self.boundary, point)
 
         if quadrant == NO_QUADRANT:
             return False
@@ -153,29 +152,29 @@ class TreeNode:
     def query_range(self, boundary):
         points = set([])
 
-        if not self.boundary.intersects(boundary):
+        if not intersects(self.boundary, boundary):
             return points
 
         for quadrant in self._nodes:
             for p in self._nodes[quadrant].query_range(boundary):
-                if boundary.belongs(p):
+                if belongs(boundary, p):
                     points.add(p)
 
         for p in self._points:
-            if boundary.belongs(p):
+            if belongs(boundary, p):
                 points.add(p)
 
         return points
 
     def _count_points(self, boundary):
-        if not self.boundary.intersects(boundary):
+        if not intersects(self.boundary, boundary):
             return 0
 
         count = 0
         for quadrant in self._nodes:
             count += self._nodes[quadrant]._count_points(boundary)
 
-        return sum(1 for p in self._points if boundary.belongs(p)) + count
+        return sum(1 for p in self._points if belongs(boundary, p)) + count
 
     def _compute_knn(self, points, point, k):
         neighbors = []
