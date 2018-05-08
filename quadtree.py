@@ -14,7 +14,6 @@ class StaticQuadTree:
 
     def __init__(self, dimension=1, max_depth=4):
         self.max_depth = max_depth
-        self._iterator = None
         self._quadrants = [0] * int(((4 ** (max_depth + 1))-1)/3)
         self._quadrants[0] = (Boundary(Point(0, 0), dimension), set([]))
         self._decompose(self._quadrants[0][BOUNDARY], 0, 0)
