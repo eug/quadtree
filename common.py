@@ -1,4 +1,7 @@
+import bisect
 from collections import namedtuple
+
+from scipy.spatial.distance import euclidean
 
 NO_QUADRANT = -1
 NORTH_WEST = 1
@@ -73,3 +76,28 @@ def intersects(boundary0, boundary1):
            intersect_bottom and intersect_left  or\
            intersect_bottom and intersect_right or\
            intersect_inside
+
+def compute_knn(points, point, k):
+    neighbors = []
+    distant_neighbor = None
+
+    for p in points:
+        if p == point: continue
+
+        dist = euclidean(point, p)
+        neighbor = (dist, p)
+
+        if len(neighbors) < k:
+            if not distant_neighbor:
+                distant_neighbor = neighbor
+            if neighbor[0] > distant_neighbor[0]:
+                distant_neighbor = neighbor
+            bisect.insort(neighbors, neighbor)
+            continue
+
+        if neighbor[0] < distant_neighbor[0]:
+            del neighbors[-1]
+            bisect.insort(neighbors, neighbor)
+            distant_neighbor = neighbors[-1]
+
+    return neighbors

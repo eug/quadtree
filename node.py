@@ -1,8 +1,4 @@
 
-import bisect
-
-from scipy.spatial.distance import euclidean
-
 from common import *
 
 
@@ -176,35 +172,10 @@ class TreeNode:
 
         return sum(1 for p in self._points if belongs(boundary, p)) + count
 
-    def _compute_knn(self, points, point, k):
-        neighbors = []
-        distant_neighbor = None
-
-        for p in points:
-            if p == point: continue
-
-            dist = euclidean(point, p)
-            neighbor = (dist, p)
-
-            if len(neighbors) < k:
-                if not distant_neighbor:
-                    distant_neighbor = neighbor
-                if neighbor[0] > distant_neighbor[0]:
-                    distant_neighbor = neighbor
-                bisect.insort(neighbors, neighbor)
-                continue
-
-            if neighbor[0] < distant_neighbor[0]:
-                del neighbors[-1]
-                bisect.insort(neighbors, neighbor)
-                distant_neighbor = neighbors[-1]
-
-        return neighbors
-
     def knn(self, point, k, factor=.1):
         if len(self) < k:
             points = self.query_range(self.boundary)
-            return self._compute_knn(points, point, k)
+            return compute_knn(points, point, k)
 
         points_count = 0
         dimension = factor
@@ -215,4 +186,4 @@ class TreeNode:
             # Note: subtracts 1 to ignore the point itself
 
         points = self.query_range(Boundary(point, dimension))
-        return self._compute_knn(points, point, k)
+        return compute_knn(points, point, k)

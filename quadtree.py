@@ -3,8 +3,8 @@ import bisect
 from scipy.spatial.distance import euclidean
 
 from common import (NO_QUADRANT, NORTH_EAST, NORTH_WEST, SOUTH_EAST,
-                    SOUTH_WEST, Boundary, Point, belongs, intersects,
-                    quadrants)
+                    SOUTH_WEST, Boundary, Point, belongs, compute_knn,
+                    intersects, quadrants)
 from node import TreeNode
 
 BOUNDARY = 0
@@ -87,7 +87,7 @@ class StaticQuadTree:
     def knn(self, point, k, factor=.1):
         if len(self) < k:
             points = self.query_range(self._quadrants[BOUNDARY])
-            return self._compute_knn(points, point, k)
+            return compute_knn(points, point, k)
         
         points_count = 0
         dimension = factor
@@ -98,7 +98,7 @@ class StaticQuadTree:
             # Note: subtracts 1 to ignore the point itself
 
         points = self.query_range(Boundary(point, dimension))
-        return self._compute_knn(points, point, k)
+        return compute_knn(points, point, k)
 
     def _count_points(self, boundary):
         count = 0
@@ -106,31 +106,6 @@ class StaticQuadTree:
             if intersects(quadrant[BOUNDARY], boundary):
                 count += len(quadrant[POINTS])
         return count
-
-    def _compute_knn(self, points, point, k):
-        neighbors = []
-        distant_neighbor = None
-
-        for p in points:
-            if p == point: continue
-
-            dist = euclidean(point, p)
-            neighbor = (dist, p)
-
-            if len(neighbors) < k:
-                if not distant_neighbor:
-                    distant_neighbor = neighbor
-                if neighbor[0] > distant_neighbor[0]:
-                    distant_neighbor = neighbor
-                bisect.insort(neighbors, neighbor)
-                continue
-
-            if neighbor[0] < distant_neighbor[0]:
-                del neighbors[-1]
-                bisect.insort(neighbors, neighbor)
-                distant_neighbor = neighbors[-1]
-
-        return neighbors
 
 
 class DynamicQuadTree:
