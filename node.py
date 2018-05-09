@@ -182,8 +182,7 @@ class TreeNode:
 
         while points_count <= k:
             dimension += factor
-            points_count = self._count_points(Boundary(point, dimension)) - 1
-            # Note: subtracts 1 to ignore the point itself
+            points_count = self._count_points(Boundary(point, dimension))
 
         points = self.query_range(Boundary(point, dimension))
         return compute_knn(points, point, k)
