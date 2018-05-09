@@ -7,6 +7,7 @@ from common import (NO_QUADRANT, NORTH_EAST, NORTH_WEST, SOUTH_EAST,
                     intersects, quadrants)
 from node import TreeNode
 
+# Constants for tuple access optimization
 BOUNDARY = 0
 POINTS = 1
 
@@ -15,13 +16,13 @@ class StaticQuadTree:
     def __init__(self, dimension=1, max_depth=4):
         self.max_depth = max_depth
         self._quadrants = [0] * int(((4 ** (max_depth + 1))-1)/3)
-        self._quadrants[0] = (Boundary(Point(0, 0), dimension), set([]))
+        self._quadrants[0] = (Boundary(Point(0, 0), dimension), set())
         self._decompose(self._quadrants[0][BOUNDARY], 0, 0)
 
     def _decompose(self, boundary, depth, parent):
         if depth == self.max_depth:
             return
-        
+
         x, y = boundary.center
         dm = boundary.dimension / 2
 
@@ -30,10 +31,10 @@ class StaticQuadTree:
         index2 = 4 * parent + SOUTH_EAST
         index3 = 4 * parent + SOUTH_WEST
 
-        self._quadrants[index0] = (Boundary(Point(x - dm, y + dm), dm), set([]))
-        self._quadrants[index1] = (Boundary(Point(x + dm, y + dm), dm), set([]))
-        self._quadrants[index2] = (Boundary(Point(x + dm, y - dm), dm), set([]))
-        self._quadrants[index3] = (Boundary(Point(x - dm, y - dm), dm), set([]))
+        self._quadrants[index0] = (Boundary(Point(x - dm, y + dm), dm), set())
+        self._quadrants[index1] = (Boundary(Point(x + dm, y + dm), dm), set())
+        self._quadrants[index2] = (Boundary(Point(x + dm, y - dm), dm), set())
+        self._quadrants[index3] = (Boundary(Point(x - dm, y - dm), dm), set())
 
         self._decompose(self._quadrants[index0][BOUNDARY], depth + 1, index0)
         self._decompose(self._quadrants[index1][BOUNDARY], depth + 1, index1)
@@ -42,10 +43,11 @@ class StaticQuadTree:
 
     def index(self, point):
         idx = 0
+        q = quadrants(self._quadrants[idx][BOUNDARY], point)
+        if q == NO_QUADRANT: return
         for _ in range(0, self.max_depth):
-            q = quadrants(self._quadrants[idx][BOUNDARY], point)
-            if q == NO_QUADRANT: return
             idx = 4 * idx + q
+            q = quadrants(self._quadrants[idx][BOUNDARY], point)
         return idx
 
     def __len__(self):
@@ -61,6 +63,9 @@ class StaticQuadTree:
         self._quadrants[self.index(point)][POINTS].add(point)
 
     def remove(self, point):
+        if not isinstance(point):
+            return False
+
         try:
             self._quadrants[self.index(point)][POINTS].remove(point)
             return True
@@ -68,6 +73,10 @@ class StaticQuadTree:
             return False
 
     def update(self, new_point, old_point):
+        if not isinstance(new_point, Point) or \
+           not isinstance(old_point, Point):
+            return False
+
         try:
             self._quadrants[self.index(old_point)][POINTS].remove(old_point)
             self._quadrants[self.index(new_point)][POINTS].add(new_point)
@@ -76,15 +85,19 @@ class StaticQuadTree:
             return False
 
     def query_range(self, boundary):
-        points = []
+        if not isinstance(boundary, Boundary):
+            return ([])
+
         for quadrant in self._quadrants:
             if intersects(quadrant[BOUNDARY], boundary):
                 for point in quadrant[POINTS]:
                     if belongs(boundary, point):
-                        points.append(point)
-        return points
+                        yield point
 
     def knn(self, point, k, factor=.1):
+        if not isinstance(point, Point) or k <= 0 or factor <= 0:
+            return []
+
         if len(self) < k:
             points = self.query_range(self._quadrants[BOUNDARY])
             return compute_knn(points, point, k)
@@ -94,8 +107,7 @@ class StaticQuadTree:
 
         while points_count <= k:
             dimension += factor
-            points_count = self._count_points(Boundary(point, dimension)) - 1
-            # Note: subtracts 1 to ignore the point itself
+            points_count = self._count_points(Boundary(point, dimension))
 
         points = self.query_range(Boundary(point, dimension))
         return compute_knn(points, point, k)
@@ -104,7 +116,9 @@ class StaticQuadTree:
         count = 0
         for quadrant in self._quadrants:
             if intersects(quadrant[BOUNDARY], boundary):
-                count += len(quadrant[POINTS])
+                for point in quadrant[POINTS]:
+                    if belongs(boundary, point):
+                        count += 1
         return count
 
 

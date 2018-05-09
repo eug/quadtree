@@ -9,6 +9,12 @@ NORTH_EAST = 2
 SOUTH_EAST = 3
 SOUTH_WEST = 4
 
+# Constants for tuple access optimzation
+CENTER = 0
+DIMENSION = 1
+X = 0
+Y = 1
+
 Point = namedtuple('Point', ['x', 'y'])
 Boundary = namedtuple('Boundary', ['center', 'dimension'])
 
@@ -17,19 +23,20 @@ def belongs(boundary, point):
     if not point:
         return False
 
-    d = boundary.dimension
-    cx, cy = boundary.center
+    d = boundary[DIMENSION]
+    cx, cy = boundary[CENTER]
     px, py = point
 
     return (py <= cy + d and py >= cy - d) and (px <= cx + d and px >= cx - d)
 
 def quadrants(boundary, point):
     """ Find in which quadrant the point belongs to """
-    if not boundary or not point:
+    if not isinstance(boundary, Boundary) or \
+       not isinstance(point, Point):
         return False
     
-    d = boundary.dimension
-    cx, cy = boundary.center
+    d = boundary[DIMENSION]
+    cx, cy = boundary[CENTER]
     px, py = point
 
     if (py <= cy + d and py >= cy) and (px >= cx - d and px <= cx):
@@ -51,17 +58,17 @@ def intersects(boundary0, boundary1):
     if not boundary0 or not boundary1:
         return False
 
-    ad = boundary0.dimension
-    aleft = boundary0.center.x - ad
-    aright = boundary0.center.x + ad
-    atop = boundary0.center.y + ad
-    abottom = boundary0.center.y - ad
+    ad      = boundary0[DIMENSION]
+    aleft   = boundary0[CENTER][X] - ad
+    aright  = boundary0[CENTER][X] + ad
+    atop    = boundary0[CENTER][Y] + ad
+    abottom = boundary0[CENTER][Y] - ad
 
-    bd = boundary1.dimension
-    bleft = boundary1.center.x - bd
-    bright = boundary1.center.x + bd
-    btop = boundary1.center.y + bd
-    bbottom = boundary1.center.y - bd
+    bd      = boundary1[DIMENSION]
+    bleft   = boundary1[CENTER][X] - bd
+    bright  = boundary1[CENTER][X] + bd
+    btop    = boundary1[CENTER][Y] + bd
+    bbottom = boundary1[CENTER][Y] - bd
 
     intersect_left  = bright > aleft and bleft < aleft
     intersect_right = bleft < aright and bright > aright
@@ -69,7 +76,7 @@ def intersects(boundary0, boundary1):
     intersect_bottom= btop > abottom and bbottom < abottom
 
     intersect_inside = (atop > btop and abottom < bbottom) or\
-                        (aleft < bleft and aright > bright)
+                       (aleft < bleft and aright > bright)
 
     return intersect_top and intersect_left  or\
            intersect_top and intersect_right or\
